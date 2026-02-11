@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["carona"]
+}
+
+model usuarios {
+  id            Int           @id @default(autoincrement())
+  nome          String        @db.VarChar(100)
+  email         String        @unique @db.VarChar(100)
+  senha         String        @db.VarChar(255)
+  tipo          String        @db.VarChar(20)
+  data_cadastro DateTime?     @default(now()) @map("data_cadastro")
+
+  passageiros     passageiros?
+  motoristas      motoristas?
+  admin           administradores?
+  ofertas         oferta_carona[]
+  chats           chat[]
+  avaliacoes      avaliacoes[]
+  notificacoes    notificacoes[]
+  acessibilidade  acessibilidade[]
+  contatos        contatos[]
+
+  @@map("usuarios")
+  @@schema("carona")
+}
+
+model passageiros {
+  id           Int       @id @default(autoincrement())
+  usuario_id   Int       @unique
+  preferencias String?   @db.VarChar(255)
+  cpf          String?   @db.VarChar(14)
+  endereco     String?   @db.VarChar(255)
+  telefone     String?   @db.VarChar(20)
+  
+  usuarios     usuarios   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  corridas     corridas[]
+
+  @@map("passageiros")
+  @@schema("carona")
+}
+
+model motoristas {
+  id              Int       @id @default(autoincrement())
+  usuario_id      Int       @unique
+  cnh             String?   @db.VarChar(20)
+  marca           String?   @db.VarChar(50)
+  modelo          String?   @db.VarChar(50)
+  cor             String?   @db.VarChar(30)
+  ar_condicionado Boolean?
+  combustivel     String?   @db.VarChar(20)
+  assentos        Int?
+  endereco        String?   @db.VarChar(255)
+  telefone        String?   @db.VarChar(20)
+  placa           String?   @db.VarChar(10)
+
+  usuarios        usuarios   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  corridas        corridas[]
+
+  @@map("motoristas")
+  @@schema("carona")
+}
+
+model administradores {
+  id          Int      @id @default(autoincrement())
+  usuario_id  Int      @unique
+  nivel_acesso String? @db.VarChar(50) @map("nivel_acesso")
+  
+  usuarios    usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("administradores")
+  @@schema("carona")
+}
+
+model corridas {
+  id            Int       @id @default(autoincrement())
+  passageiro_id Int
+  motorista_id  Int
+  origem        String?   @db.VarChar(255)
+  destino       String?   @db.VarChar(255)
+  data_corrida  DateTime?
+  status        String?
+  valor         Decimal?  @db.Decimal(10, 2)
+
+  passageiros   passageiros @relation(fields: [passageiro_id], references: [id], onDelete: Cascade)
+  motoristas    motoristas  @relation(fields: [motorista_id], references: [id], onDelete: Cascade)
+  pagamentos    pagamentos[]
+  desvios       desvios_inteligentes[]
+  rastreamento  rastreamento_tempo_real[]
+  avaliacoes    avaliacoes[]
+
+  @@map("corridas")
+  @@schema("carona")
+}
+
+model oferta_carona {
+  id              Int      @id @default(autoincrement()) @map("id_oferta")
+  motoristaId     Int      @map("id_motorista")
+  tipo            String   @db.VarChar(20)
+  origem          String   @db.VarChar(255)
+  destino         String   @db.VarChar(255)
+  dataHora        DateTime @map("data_hora")
+  vagas           Int
+  valor           Decimal  @db.Decimal(10, 2)
+  veiculo         String   @db.VarChar(100)
+  placa           String   @db.VarChar(10)
+  arCondicionado  Boolean  @map("ar_condicionado")
+  observacoes     String?  @db.Text
+  telefone        String   @db.VarChar(20)
+  dataCriacao     DateTime @default(now()) @map("data_criacao")
+
+  motorista       usuarios  @relation(fields: [motoristaId], references: [id])
+
+  @@map("oferta_carona")
+  @@schema("carona")
+}
+
+model pagamentos {
+  id               Int       @id @default(autoincrement())
+  corrida_id       Int
+  valor_pago       Decimal?  @db.Decimal(10, 2)
+  data_pagamento   DateTime?
+  metodo_pagamento String?   @db.VarChar(50)
+  status           String?
+
+  corridas         corridas  @relation(fields: [corrida_id], references: [id], onDelete: Cascade)
+
+  @@map("pagamentos")
+  @@schema("carona")
+}
+
+model eventos_culturais {
+  id          Int       @id @default(autoincrement())
+  nome        String?   @db.VarChar(100)
+  descricao   String?   @db.Text
+  data_evento DateTime?
+  local       String?   @db.VarChar(255)
+
+  @@map("eventos_culturais")
+  @@schema("carona")
+}
+
+model chat {
+  id          Int       @id @default(autoincrement())
+  usuario_id  Int
+  mensagem    String?   @db.Text
+  data_envio  DateTime? @default(now())
+
+  usuarios    usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("chat")
+  @@schema("carona")
+}
+
+model desvios_inteligentes {
+  id               Int       @id @default(autoincrement())
+  corrida_id       Int
+  rota_alternativa String?   @db.VarChar(255)
+  motivo           String?   @db.VarChar(255)
+  data_desvio      DateTime?
+
+  corridas         corridas  @relation(fields: [corrida_id], references: [id], onDelete: Cascade)
+
+  @@map("desvios_inteligentes")
+  @@schema("carona")
+}
+
+model rastreamento_tempo_real {
+  id            Int       @id @default(autoincrement())
+  corrida_id    Int
+  latitude      Decimal?  @db.Decimal(9, 6)
+  longitude     Decimal?  @db.Decimal(9, 6)
+  data_registro DateTime?
+
+  corridas      corridas  @relation(fields: [corrida_id], references: [id], onDelete: Cascade)
+
+  @@map("rastreamento_tempo_real")
+  @@schema("carona")
+}
+
+model avaliacoes {
+  id             Int       @id @default(autoincrement())
+  corrida_id     Int
+  usuario_id     Int
+  nota           Int?
+  comentario     String?   @db.Text
+  data_avaliacao DateTime?
+
+  corridas       corridas  @relation(fields: [corrida_id], references: [id], onDelete: Cascade)
+  usuarios       usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("avaliacoes")
+  @@schema("carona")
+}
+
+model notificacoes {
+  id         Int       @id @default(autoincrement())
+  usuario_id Int
+  mensagem   String?   @db.Text
+  lida       Boolean?  @default(false)
+  data_envio DateTime? @default(now())
+
+  usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("notificacoes")
+  @@schema("carona")
+}
+
+model terminais_rurais {
+  id          Int     @id @default(autoincrement())
+  nome        String? @db.VarChar(100)
+  localizacao String? @db.VarChar(255)
+
+  @@map("terminais_rurais")
+  @@schema("carona")
+}
+
+model eventos_sistema {
+  id          Int       @id @default(autoincrement())
+  tipo_evento String?
+  descricao   String?   @db.Text
+  data_evento DateTime?
+
+  @@map("eventos_sistema")
+  @@schema("carona")
+}
+
+model acessibilidade {
+  id                  Int     @id @default(autoincrement())
+  usuario_id          Int
+  tipo_acessibilidade String?
+  preferencias        String? @db.VarChar(100)
+
+  usuarios            usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("acessibilidade")
+  @@schema("carona")
+}
+
+model contatos {
+  id_contato   Int       @id @default(autoincrement())
+  id_usuario   Int
+  descricao    String    @db.VarChar(500)
+  data_criacao DateTime? @default(now())
+
+  usuarios     usuarios  @relation(fields: [id_usuario], references: [id])
+
+  @@map("contatos")
+  @@schema("carona")
+}
+
+model formulario_contato {
+  id           Int       @id @default(autoincrement())
+  nome         String    @db.VarChar(100)
+  email        String    @db.VarChar(100)
+  mensagem     String    @db.Text
+  data_criacao DateTime? @default(now())
+
+  @@map("formulario_contato")
+  @@schema("carona")
+}
